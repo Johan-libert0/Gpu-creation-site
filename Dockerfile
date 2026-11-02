@@ -4,7 +4,7 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=10000
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 COPY payment-client.js ./
 COPY server.js config.js postgres-store.js payments.js privacy.js worker.js huggingface.js x402-payment.js public ./
 RUN npm run build:payment-client && npm prune --omit=dev
