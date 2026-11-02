@@ -7,7 +7,7 @@ const { createServer, isAllowedUser, stateForIdentity } = require("../server");
 const { MAX_INPUT_BYTES } = require("../worker");
 const { PAYMENT_CONFIGURATION, createPaymentRecord } = require("../payments");
 const { getRuntimeConfig, validateRuntimeConfig } = require("../config");
-const { decryptSource, encryptSource, encryptionKey } = require("../postgres-store");
+const { decryptSource, encryptSource, encryptionKey, postgresSslOptions } = require("../postgres-store");
 const { redactText } = require("../privacy");
 const { INFERENCE_URL, MAX_GENERATION_DURATION_MS, runHuggingFaceGeneration } = require("../huggingface");
 const { getX402Configuration, validateX402Configuration } = require("../x402-payment");
@@ -22,6 +22,19 @@ test("payment records cannot claim funds moved", () => {
   assert.equal(PAYMENT_CONFIGURATION.enabled, false);
   assert.equal(record.status, "not_settled");
   assert.equal(record.transactionId, null);
+});
+
+test("PostgreSQL verifies TLS certificates by default and supports Render internal TLS", () => {
+  assert.deepEqual(postgresSslOptions({ NODE_ENV: "production" }), { rejectUnauthorized: true });
+  assert.deepEqual(postgresSslOptions({
+    NODE_ENV: "production",
+    DATABASE_SSL_REJECT_UNAUTHORIZED: "false"
+  }), { rejectUnauthorized: false });
+  assert.equal(postgresSslOptions({ NODE_ENV: "development" }), undefined);
+  assert.throws(() => postgresSslOptions({
+    NODE_ENV: "production",
+    DATABASE_SSL_REJECT_UNAUTHORIZED: "no"
+  }), /DATABASE_SSL_REJECT_UNAUTHORIZED/);
 });
 
 test("x402 stays disabled by default and requires verified token, recipient, facilitator, and receipt settings", () => {

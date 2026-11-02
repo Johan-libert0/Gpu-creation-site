@@ -25,6 +25,8 @@ services:
         fromDatabase:
           name: gpufiles-db
           property: connectionString
+      - key: DATABASE_SSL_REJECT_UNAUTHORIZED
+        value: "false"
       - key: DATA_ENCRYPTION_KEY
         sync: false
       - key: PRIVACY_MODE

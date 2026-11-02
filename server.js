@@ -79,6 +79,12 @@ function sendError(response, status, message) {
   sendJson(response, status, { error: message });
 }
 
+function databaseErrorDetails(error) {
+  if (error?.code) return error.code;
+  if (typeof error?.message !== "string") return "unknown database error";
+  return error.message.replace(/postgres(?:ql)?:\/\/[^\s"'<>]+/gi, "postgres://[redacted]");
+}
+
 function roleFrom(request) {
   const runtime = getRuntimeConfig();
   if (runtime.auth.configured && request.oidc?.isAuthenticated()) {
@@ -510,7 +516,7 @@ function createServer(options = {}) {
     ? durableStore.initialize().then(() => { databaseReady = true; })
     : Promise.resolve();
   storeReady.catch((error) => {
-    console.error("PostgreSQL initialization failed.", error.code || "database_error");
+    console.error("PostgreSQL initialization failed.", databaseErrorDetails(error));
   });
   const app = express();
 
@@ -705,7 +711,7 @@ function createServer(options = {}) {
           console.error(`Queued inference job ${queuedJob.jobId} failed (attempt ${queuedJob.attempt}).`);
         }
       } catch (error) {
-        console.error("Persistent job queue polling failed.", error.code || "database_error");
+        console.error("Persistent job queue polling failed.", databaseErrorDetails(error));
       } finally {
         queueRunning = false;
         queueAbortController = null;
@@ -720,7 +726,7 @@ function createServer(options = {}) {
         queueTimer.unref?.();
         void drainQueue();
       }).catch((error) => {
-        console.error("Persistent job queue startup failed.", error.code || "database_error");
+        console.error("Persistent job queue startup failed.", databaseErrorDetails(error));
       });
     }
   });

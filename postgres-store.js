@@ -5,6 +5,15 @@ const SOURCE_RETENTION_MS = 60 * 60 * 1000;
 const QUEUE_LEASE_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
 
+function postgresSslOptions(env = process.env) {
+  if (env.NODE_ENV !== "production") return undefined;
+  const verifyServerCertificate = env.DATABASE_SSL_REJECT_UNAUTHORIZED ?? "true";
+  if (!["true", "false"].includes(verifyServerCertificate)) {
+    throw new Error("DATABASE_SSL_REJECT_UNAUTHORIZED must be true or false.");
+  }
+  return { rejectUnauthorized: verifyServerCertificate === "true" };
+}
+
 function encryptionKey(value = process.env.DATA_ENCRYPTION_KEY) {
   if (!value) throw new Error("DATA_ENCRYPTION_KEY is required for PostgreSQL source encryption.");
   const key = /^[0-9a-f]{64}$/i.test(value)
@@ -36,6 +45,7 @@ function decryptSource(source, key) {
 
 function createPostgresStore({ connectionString = process.env.DATABASE_URL, key = encryptionKey(), pool } = {}) {
   if (!connectionString && !pool) throw new Error("DATABASE_URL is required for PostgreSQL storage.");
+  const ssl = postgresSslOptions();
   const database = pool || new Pool({
     connectionString,
     max: 10,
@@ -43,7 +53,7 @@ function createPostgresStore({ connectionString = process.env.DATABASE_URL, key 
     idleTimeoutMillis: 30_000,
     query_timeout: 20_000,
     statement_timeout: 15_000,
-    ...(process.env.NODE_ENV === "production" ? { ssl: { rejectUnauthorized: true } } : {})
+    ...(ssl ? { ssl } : {})
   });
 
   async function initialize() {
@@ -409,4 +419,4 @@ function createPostgresStore({ connectionString = process.env.DATABASE_URL, key 
   };
 }
 
-module.exports = { createPostgresStore, decryptSource, encryptSource, encryptionKey };
+module.exports = { createPostgresStore, decryptSource, encryptSource, encryptionKey, postgresSslOptions };
