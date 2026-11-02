@@ -2,14 +2,14 @@ databases:
   - name: gpufiles-db
     databaseName: gpufiles
     user: gpufiles
-    plan: basic-256mb
+    plan: free
     region: oregon
 
 services:
   - type: web
     name: gpufiles
     runtime: docker
-    plan: starter
+    plan: free
     region: oregon
     healthCheckPath: /readyz
     envVars:

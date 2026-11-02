@@ -479,7 +479,9 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   const howItWorksPage = await fetch(`${base}/how-it-works`);
   assert.match(await howItWorksPage.text(), /Render enables a separate x402 wallet checkout/);
   const docsPage = await fetch(`${base}/docs`);
-  assert.match(await docsPage.text(), /Render Blueprint sets <code>X402_ENABLED=true<\/code>/);
+  const docsHtml = await docsPage.text();
+  assert.match(docsHtml, /Render Blueprint uses Free web and PostgreSQL plans and sets <code>X402_ENABLED=true<\/code>/);
+  assert.match(docsHtml, /Free PostgreSQL expires after 30 days/);
   const loginPage = await fetch(`${base}/login`);
   assert.equal(loginPage.status, 200);
   assert.match(await loginPage.text(), /href="\/auth\/signup">Create an account/);

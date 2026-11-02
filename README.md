@@ -43,7 +43,7 @@ The server-side Auth0 settings are `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLI
 - The x402 endpoint is separate from the marketplace's provider/job approval flow. It does not activate marketplace escrow or contributor payouts.
 - `X402_ENABLED` defaults to `false` in the application, but the Render Blueprint sets it to `true`. Enabling it requires a verified Arbitrum One recipient, USDG contract metadata and supported transfer method, CDP facilitator credentials, and PostgreSQL for idempotent settlement receipts. Startup fails closed when any required setting is missing.
 
-Deployment templates are included for Render (`render.yaml`) and a container host (`Dockerfile`). The Render blueprint provisions PostgreSQL and wires its connection string; set `AUTH0_ALLOWED_EMAILS`, `DATA_ENCRYPTION_KEY`, Auth0 settings, the public `BASE_URL`, `HF_TOKEN`, and `HF_MODEL` in the hosting provider's secret settings. Do not commit real credentials.
+Deployment templates are included for Render (`render.yaml`) and a container host (`Dockerfile`). The Render Blueprint uses free web and PostgreSQL plans and wires the database connection string; set `AUTH0_ALLOWED_EMAILS`, `DATA_ENCRYPTION_KEY`, Auth0 settings, the public `BASE_URL`, `HF_TOKEN`, `HF_MODEL`, and x402 payment settings in the hosting provider's secret settings. Do not commit real credentials. Render Free web services can spin down when idle, and Free PostgreSQL expires after 30 days, so this configuration is for testing only, not reliable production payment records. Inference-provider and facilitator usage may still incur charges.
 
 ### Deployment and operations checks
 
@@ -73,7 +73,7 @@ Configure these values only in the hosting secret manager after independently ve
 - `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` — facilitator credentials
 - `DATABASE_URL` — required for durable settlement receipts
 
-The USDG address currently shown in `.env.example` is the address supplied for this integration. The operator has verified the metadata and transfer path in an approved test environment and with a controlled live transaction. The Render Blueprint enables x402 by default, so provide all required settings before deploying it and reverify if the token or transfer configuration changes. Existing marketplace job payment records remain `not_settled`; this x402 route is not escrow and does not create contributor payouts.
+The USDG address currently shown in `.env.example` is the address supplied for this integration. The operator has verified the metadata and transfer path in an approved test environment and with a controlled live transaction. The Render Blueprint enables x402 by default, so provide all required settings before deploying it and reverify if the token or transfer configuration changes. Render Free is a temporary demo setup: the web service can sleep, and the PostgreSQL database expires after 30 days without backups. Do not rely on it for durable payment receipts or production settlement. Inference and facilitator usage can still incur charges. Existing marketplace job payment records remain `not_settled`; this x402 route is not escrow and does not create contributor payouts.
 
 ## Remaining production constraints
 
