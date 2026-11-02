@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07599f"><title>How it works — GPU Foundry</title>
+  <link rel="stylesheet" href="/styles.css?v=hf-prompt-jobs"><script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/"><span class="brand-mark"><span class="brand-dot"></span></span><span>GPU Foundry</span></a>
+    <button class="nav-mobile-toggle" type="button" aria-expanded="false" aria-controls="pill-navigation" data-nav-toggle>Menu</button>
+    <nav class="site-nav pill-nav" id="pill-navigation" aria-label="Main navigation" data-pill-nav>
+      <a class="pill-nav-active" href="/how-it-works">How it works</a><a href="/providers">Providers</a><a href="/docs">Docs</a><a href="/login">Launch app <span>↗</span></a>
+    </nav>
+  </header>
+  <main class="info-page">
+    <section class="info-hero"><span class="info-kicker">Prompt jobs, visible terms</span><h1>Approve the work before it begins.</h1><p>GPU Foundry separates job approval, managed inference, buyer review, and payment. Render enables a separate x402 wallet checkout for direct text generation when its payment and inference settings are ready; approving marketplace work does not transfer funds.</p></section>
+    <section class="info-grid" aria-label="GPU Foundry workflow">
+      <article class="info-card"><span>01 / REQUEST</span><h2>Set the terms</h2><p>A buyer writes a prompt and proposes a title and payout. The prompt is sent to Hugging Face only after a provider accepts the job.</p></article>
+      <article class="info-card"><span>02 / ACCEPT</span><h2>Generate a response</h2><p>A marketplace provider accepts the request and the configured Hugging Face Inference Provider generates text. This does not use the marketplace provider's own GPU hardware.</p></article>
+      <article class="info-card"><span>03 / APPROVE</span><h2>Review the result</h2><p>The buyer reviews the output and approves it; marketplace job payment records remain unpaid. Direct text generation has a separate x402 checkout that charges 0.01 USDG per successful response when enabled.</p></article>
+    </section>
+  </main>
+</body>
+</html>

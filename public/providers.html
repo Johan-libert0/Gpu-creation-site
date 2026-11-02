@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07599f"><title>GPU providers — GPU Foundry</title>
+  <link rel="stylesheet" href="/styles.css?v=hf-prompt-jobs"><script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/"><span class="brand-mark"><span class="brand-dot"></span></span><span>GPU Foundry</span></a>
+    <button class="nav-mobile-toggle" type="button" aria-expanded="false" aria-controls="pill-navigation" data-nav-toggle>Menu</button>
+    <nav class="site-nav pill-nav" id="pill-navigation" aria-label="Main navigation" data-pill-nav>
+      <a href="/how-it-works">How it works</a><a class="pill-nav-active" href="/providers">Providers</a><a href="/docs">Docs</a><a href="/login">Launch app <span>↗</span></a>
+    </nav>
+  </header>
+  <main class="info-page">
+    <section class="info-hero"><span class="info-kicker">Choose work on your terms</span><h1>Accept only the jobs you choose.</h1><p>Providers can review the prompt-job terms and accept or decline work. In this integration, actual model inference runs through Hugging Face Inference Providers, not on the accepting provider's own GPU.</p></section>
+    <section class="info-grid" aria-label="Provider capabilities">
+      <article class="info-card"><span>CONTROL</span><h2>Inspect every term</h2><p>Review the prompt-job title, model processing, and proposed payout before accepting a request.</p></article>
+      <article class="info-card"><span>EXECUTION</span><h2>Managed inference</h2><p>The deployment's Hugging Face token calls the configured Inference Providers model. Model access, availability, pricing, and data handling depend on Hugging Face and the selected inference provider.</p></article>
+      <article class="info-card"><span>ACCOUNTABILITY</span><h2>Recorded outcomes</h2><p>Derived output, job status, approval, and settlement state remain separate, auditable records rather than automatic promises.</p></article>
+    </section>
+  </main>
+</body>
+</html>

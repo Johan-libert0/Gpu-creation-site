@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#07599f">
+    <title>GPU Foundry — Prompt generation marketplace</title>
+    <link rel="stylesheet" href="/styles.css?v=hf-prompt-jobs">
+    <script src="/app.js" defer></script>
+    <script src="/payment-client.js" defer></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand" href="/" aria-label="GPU Foundry home">
+          <span class="brand-mark"><span class="brand-dot"></span></span>
+          <span>GPU Foundry</span>
+        </a>
+
+        <button class="nav-mobile-toggle" type="button" aria-expanded="false" aria-controls="pill-navigation" data-nav-toggle>Menu</button>
+        <nav class="site-nav pill-nav" id="pill-navigation" aria-label="Main navigation" data-pill-nav>
+          <a href="/how-it-works">How it works</a>
+          <a href="/providers">Providers</a>
+          <a href="/docs">Docs</a>
+          <a class="pill-nav-active" href="/login">Launch app <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <main class="landing-main">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow eyebrow-muted" id="how-it-works">your gpu · your files · your terms</p>
+            <h1 id="hero-title">Prompt generation,<br><span>on your terms.</span></h1>
+            <p class="hero-text">GPU Foundry lets buyers post prompt-generation jobs for review before a configured Hugging Face model processes them. Render enables separate x402 paid text generation when its payment and inference settings are ready; marketplace job payouts remain separate.</p>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="/login">Launch GPU Foundry</a>
+              <a class="btn btn-secondary" href="#providers">Explore providers</a>
+            </div>
+          </div>
+
+          <div class="hero-visual" aria-label="GPU Foundry job preview">
+            <div class="glass-panel">
+              <div class="check-row status-row" id="providers">
+                <span class="status-dot"></span>
+                <span class="status-icon">◌</span>
+                <span>GPU contributor ready</span>
+              </div>
+              <div class="check-row label-row" id="jobs">
+                <span class="label-icon">✦</span>
+                <span>Job terms reviewed</span>
+              </div>
+              <div class="result-box">
+                <h2>Controlled processing</h2>
+                <p>Provider and payment availability depend on the current service configuration. Review workspace status and provider terms before starting a job.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="dashboard-shell" aria-hidden="true">
+        <aside class="sidebar">
+          <a class="brand" href="/" aria-label="GPU Foundry dashboard">
+            <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v4H9v3h8v4H9v5H5V4Z"/></svg></span>
+            <span>GPU Foundry<sup>beta</sup></span>
+          </a>
+
+          <div class="workspace-switcher">
+            <span class="workspace-avatar">G</span>
+            <span class="workspace-meta"><strong>Personal workspace</strong><small>Local preview</small></span>
+            <span class="chevron">⌄</span>
+          </div>
+
+          <div class="nav-label">WORKSPACE</div>
+          <nav class="side-nav" aria-label="Main navigation">
+            <a class="nav-link active" href="#overview"><span class="nav-icon">◫</span>Overview</a>
+            <a class="nav-link" href="#marketplace"><span class="nav-icon">⌘</span>Marketplace<span class="nav-count" id="nav-job-count">0</span></a>
+            <a class="nav-link" href="#payments"><span class="nav-icon">↗</span>Payments<span class="soon-tag">OFF</span></a>
+          </nav>
+
+          <div class="sidebar-bottom">
+            <div class="mode-card">
+              <span class="mode-indicator"></span>
+              <div><strong>Prototype mode</strong><small>Marketplace payouts separate</small></div>
+            </div>
+            <div class="sidebar-profile">
+              <span class="profile-avatar">D</span>
+              <span class="profile-meta"><strong>Demo user</strong><small>Not authenticated</small></span>
+              <span class="more-button" aria-hidden="true">···</span>
+            </div>
+          </div>
+        </aside>
+
+        <div class="main-column">
+          <header class="topbar">
+            <div class="breadcrumbs"><span>Workspace</span><span class="crumb-separator">/</span><strong id="breadcrumb-title">Overview</strong></div>
+            <div class="topbar-actions">
+              <span class="live-status" id="runtime-status"><i></i>LOCAL PREVIEW</span>
+              <button class="icon-button" id="refresh-button" type="button" aria-label="Refresh dashboard" title="Refresh">↻</button>
+              <a class="topbar-avatar" id="auth-control" href="/login" aria-label="Sign in">A</a>
+            </div>
+          </header>
+
+          <main id="overview">
+            <section class="welcome-row">
+              <div>
+                <div class="eyebrow"><span class="eyebrow-line"></span>GPU FOUNDRY NETWORK <span class="version-tag">PREVIEW</span></div>
+                <h1>Your prompts,<br><span>your terms.</span></h1>
+                <p class="welcome-copy">A marketplace for prompt generation through a configured Hugging Face model. Review data-handling and payment terms; this service does not guarantee private processing.</p>
+              </div>
+              <div class="role-switch" id="demo-role-switch">
+                <span>Preview as</span>
+                <select id="role-select" aria-label="Switch demo role">
+                  <option value="buyer">Buyer</option>
+                  <option value="provider">Provider</option>
+                </select>
+              </div>
+            </section>
+
+            <section class="trust-strip" aria-label="Service capabilities">
+              <div class="trust-item"><span class="trust-symbol green">⌁</span><div><strong id="gpu-label">Inference not configured</strong><small id="gpu-detail">Configure Hugging Face credentials and model</small></div></div>
+              <div class="trust-divider"></div>
+              <div class="trust-item"><span class="trust-symbol amber">◇</span><div><strong id="settlement-label">Unpaid records</strong><small id="settlement-detail">Checking x402 payment status</small></div></div>
+              <div class="trust-divider"></div>
+              <div class="trust-item"><span class="trust-symbol blue">◈</span><div><strong id="auth-label">Demo identity</strong><small id="auth-detail">Real authentication not configured</small></div></div>
+            </section>
+
+            <section class="metrics-grid" aria-label="Marketplace overview">
+              <article class="metric-card"><div class="metric-label">OPEN JOBS <span class="metric-icon">⌘</span></div><div class="metric-value" id="metric-open">0</div><div class="metric-foot">Available in local preview</div></article>
+              <article class="metric-card"><div class="metric-label">COMPLETED <span class="metric-icon green">✓</span></div><div class="metric-value" id="metric-completed">0</div><div class="metric-foot">Generated by configured model</div></article>
+              <article class="metric-card"><div class="metric-label">PROPOSED VOLUME <span class="metric-icon amber">◉</span></div><div class="metric-value" id="metric-volume">$0.00</div><div class="metric-foot">No funds have moved</div></article>
+              <article class="metric-card"><div class="metric-label">NETWORK <span class="metric-icon blue">◎</span></div><div class="metric-value network-value">LOCAL</div><div class="metric-foot">Network status</div></article>
+            </section>
+
+            <section class="content-section" id="marketplace">
+              <div class="section-heading">
+                <div><div class="eyebrow">WORK QUEUE</div><h2 id="view-title">Create a job</h2></div>
+                <span class="subtle-count" id="job-count">0 jobs</span>
+              </div>
+
+              <div class="buyer-panel surface-card" id="buyer-panel">
+                <div class="panel-intro"><div><span class="step-index">01</span><span class="eyebrow">NEW REQUEST</span></div><h3>Describe the work</h3><p>Enter a prompt for Hugging Face Inference Providers and propose a payout.</p></div>
+                <form id="job-form">
+                  <div class="form-grid">
+                    <div class="field-group full-field">
+                      <label for="job-title">Job title</label>
+                      <input id="job-title" name="title" maxlength="80" placeholder="e.g. Extract key phrases from a report" required>
+                    </div>
+                    <div class="field-group full-field">
+                      <label for="job-prompt">Prompt <span>TEXT ONLY</span></label>
+                      <textarea id="job-prompt" name="prompt" maxlength="65536" rows="5" placeholder="What would you like the model to generate?" required></textarea>
+                      <small class="field-hint">Up to 64 KiB · sent to Hugging Face Inference Providers when a provider accepts the job</small>
+                    </div>
+                    <div class="field-group">
+                      <label for="job-price">Proposed payout</label>
+                      <div class="amount-input"><span>$</span><input id="job-price" name="price" type="number" min="0.01" max="100" step="0.01" value="1.00" required><span class="currency-label">USDG</span></div>
+                      <small class="field-hint">Indicative only · no transfer</small>
+                    </div>
+                  </div>
+                      <div class="consent-box"><span class="consent-icon">!</span><p><strong>Review data handling before you submit.</strong> Your job title and proposed payout are visible to eligible marketplace providers. The prompt is encrypted in PostgreSQL in production, then sent to Hugging Face Inference Providers for generation after acceptance. Review Hugging Face and the selected inference provider’s data-handling terms before sending anything sensitive. Temporary prompt storage is not a secure deletion guarantee.</p></div>
+                      <label class="processing-consent" for="job-data-consent"><input id="job-data-consent" type="checkbox" required><span>I am authorized to send this prompt to this service and Hugging Face Inference Providers.</span></label>
+                      <div class="form-footer"><span class="form-note">Posting does not transfer funds.</span><button class="button button-primary" type="submit">Create job <span>↗</span></button></div>
+                  <p id="form-status" class="status-message" role="status"></p>
+                </form>
+              </div>
+
+              <div class="provider-banner surface-card" id="provider-banner" hidden>
+                <div class="provider-symbol">⌁</div><div><div class="eyebrow">PROVIDER WORKSPACE</div><h3>Choose work on your terms.</h3><p>Review each prompt job before accepting it. Accepted prompts are processed by the configured Hugging Face Inference Provider; this does not connect your own GPU hardware. No funds are transferred by this service.</p></div>
+              </div>
+
+              <div class="list-heading"><div><h3>Recent jobs</h3><p>Review the work and its current status.</p></div><span class="list-live"><i></i>JOB QUEUE</span></div>
+              <div id="jobs-list" class="jobs-list" aria-live="polite"></div>
+            </section>
+
+            <section class="content-section payments-section" id="payments">
+              <div class="section-heading">
+                <div><div class="eyebrow">PAID TEXT GENERATION</div><h2>Pay per response</h2></div>
+                <span class="disabled-pill" id="paid-generation-status">Checking x402 status</span>
+              </div>
+              <p class="section-copy">Generate text directly through Hugging Face Inference Providers. When enabled, x402 charges 0.01 USDG on Arbitrum One only after a successful response. Marketplace jobs and provider payouts remain separate.</p>
+              <form id="paid-generation-form" class="paid-generation-card">
+                <label class="field-group full-field" for="paid-generation-prompt">
+                  <span>Prompt <span>UP TO 64 KIB</span></span>
+                  <textarea id="paid-generation-prompt" maxlength="65536" rows="4" placeholder="What should the model generate?" required></textarea>
+                </label>
+                <label class="processing-consent" for="paid-generation-consent">
+                  <input id="paid-generation-consent" type="checkbox" required>
+                  <span>I am authorized to send this prompt to GPU Foundry and Hugging Face Inference Providers. I have reviewed their data-handling terms.</span>
+                </label>
+                <div class="form-footer">
+                  <span class="form-note" id="paid-generation-note">Payment is not enabled on this service.</span>
+                  <button class="button button-primary" id="paid-generation-submit" type="submit" disabled>Generate · 0.01 USDG</button>
+                </div>
+                <p id="paid-generation-result" class="status-message" role="status" aria-live="polite"></p>
+                <pre id="paid-generation-output" class="generated-output" hidden></pre>
+              </form>
+              <div class="payments-table">
+                <div class="table-head"><span>MARKETPLACE PAYMENT</span><span>NETWORK</span><span>STATUS</span></div>
+                <div id="payments-list" class="payments-list"></div>
+              </div>
+            </section>
+
+            <footer><span>GPU Foundry <b>·</b> Your GPU, your files, your terms.</span><span id="service-status">LOCAL PREVIEW <b>·</b> NOT A LIVE SERVICE</span></footer>
+          </main>
+        </div>
+      </aside>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

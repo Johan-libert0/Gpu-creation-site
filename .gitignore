@@ -1,0 +1,14 @@
+.venv/
+.config/
+.vscode/
+node_modules/
+__pycache__/
+.env
+.env.*
+!.env.example
+data/
+coverage/
+evm/node_modules/
+evm/artifacts/
+evm/cache/
+evm/types/

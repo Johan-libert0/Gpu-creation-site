@@ -1,0 +1,42 @@
+{
+  "name": "gpu-foundry-local-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GPU Foundry marketplace runtime with production integration boundaries",
+  "scripts": {
+    "build:payment-client": "esbuild payment-client.js --bundle --minify --format=iife --target=es2020 --outfile=public/payment-client.js",
+    "prestart": "npm run build:payment-client",
+    "predev": "npm run build:payment-client",
+    "pretest": "npm run build:payment-client",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test test/app.test.js",
+    "test:escrow": "npm --prefix evm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@coinbase/cdp-sdk": "^1.60.0",
+    "@x402/core": "^2.29.0",
+    "@x402/evm": "^2.29.0",
+    "@x402/express": "^2.29.0",
+    "@x402/fetch": "^2.29.0",
+    "@x402/svm": "^2.29.0",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "express-openid-connect": "^3.4.0",
+    "pg": "^8.23.1"
+  },
+  "main": "config.js",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

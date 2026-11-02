@@ -1,0 +1,71 @@
+databases:
+  - name: gpufiles-db
+    databaseName: gpufiles
+    user: gpufiles
+    plan: basic-256mb
+    region: oregon
+
+services:
+  - type: web
+    name: gpufiles
+    runtime: docker
+    plan: starter
+    region: oregon
+    healthCheckPath: /readyz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GPUFILES_RUNTIME_MODE
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gpufiles-db
+          property: connectionString
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+      - key: PRIVACY_MODE
+        value: external-provider
+      - key: BASE_URL
+        sync: false
+      - key: AUTH0_DOMAIN
+        value: dev-a47ow65vustjo8g7.us.auth0.com
+      - key: AUTH0_CLIENT_ID
+        value: y1GzPxPSdedUbnltWfAWVYuJ1Fn89p0Y
+      - key: AUTH0_CLIENT_SECRET
+        sync: false
+      - key: AUTH0_SECRET
+        generateValue: true
+      - key: AUTH0_ALLOWED_EMAILS
+        sync: false
+      - key: GPU_PROVIDER
+        value: huggingface-inference
+      - key: HF_TOKEN
+        sync: false
+      - key: HF_MODEL
+        sync: false
+      - key: GPU_PROVIDER_PRIVACY_ACKNOWLEDGED
+        value: false
+      - key: X402_ENABLED
+        value: "true"
+      - key: X402_NETWORK
+        value: eip155:42161
+      - key: X402_ASSET_ADDRESS
+        sync: false
+      - key: X402_ASSET_DECIMALS
+        sync: false
+      - key: X402_ASSET_NAME
+        sync: false
+      - key: X402_ASSET_VERSION
+        sync: false
+      - key: X402_ASSET_TRANSFER_METHOD
+        sync: false
+      - key: X402_RECIPIENT
+        sync: false
+      - key: CDP_API_KEY_ID
+        sync: false
+      - key: CDP_API_KEY_SECRET
+        sync: false
