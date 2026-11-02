@@ -48,7 +48,7 @@ services:
       - key: HF_MODEL
         sync: false
       - key: GPU_PROVIDER_PRIVACY_ACKNOWLEDGED
-        value: false
+        value: "true"
       - key: X402_ENABLED
         value: "true"
       - key: X402_NETWORK
