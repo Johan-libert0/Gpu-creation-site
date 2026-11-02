@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
-const { createServer, isAllowedUser, stateForIdentity } = require("../server");
+const { createServer, databaseErrorDetails, isAllowedUser, stateForIdentity } = require("../server");
 const { MAX_INPUT_BYTES } = require("../worker");
 const { PAYMENT_CONFIGURATION, createPaymentRecord } = require("../payments");
 const { getRuntimeConfig, validateRuntimeConfig } = require("../config");
@@ -35,6 +35,19 @@ test("PostgreSQL verifies TLS certificates by default and supports Render intern
     NODE_ENV: "production",
     DATABASE_SSL_REJECT_UNAUTHORIZED: "no"
   }), /DATABASE_SSL_REJECT_UNAUTHORIZED/);
+});
+
+test("database connection logs include sanitized underlying errors", () => {
+  const cause = Object.assign(
+    new Error("connect ECONNREFUSED postgres://db-user:secret@db.example:5432/app"),
+    { code: "ECONNREFUSED" }
+  );
+  const error = new Error("Connection terminated due to connection timeout", { cause });
+  assert.equal(
+    databaseErrorDetails(error),
+    "Connection terminated due to connection timeout <- ECONNREFUSED: connect ECONNREFUSED postgres://[redacted]"
+  );
+  assert.doesNotMatch(databaseErrorDetails(error), /secret|db-user/);
 });
 
 test("x402 stays disabled by default and requires verified token, recipient, facilitator, and receipt settings", () => {
@@ -584,9 +597,18 @@ test("production APIs require Auth0 sessions and never expose demo identities", 
   });
 
   let databaseHealthy = true;
+  let initializationAttempts = 0;
   const server = createServer({
     durableStore: {
-      initialize: async () => {},
+      initialize: async () => {
+        initializationAttempts += 1;
+        if (initializationAttempts === 1) {
+          const cause = Object.assign(new Error("temporary database connection failure"), {
+            code: "ECONNRESET"
+          });
+          throw new Error("Connection terminated due to connection timeout", { cause });
+        }
+      },
       checkHealth: async () => {
         if (!databaseHealthy) throw new Error("database unavailable");
       },
@@ -611,7 +633,12 @@ test("production APIs require Auth0 sessions and never expose demo identities", 
   assert.equal(stateResponse.status, 401);
   assert.match(stateResponse.headers.get("x-request-id"), /^[0-9a-f-]{36}$/i);
   assert.deepEqual(await (await fetch(`${base}/healthz`)).json(), { status: "ok" });
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if ((await fetch(`${base}/readyz`)).status === 200) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
   assert.equal((await fetch(`${base}/readyz`)).status, 200);
+  assert.equal(initializationAttempts, 2);
   databaseHealthy = false;
   assert.equal((await fetch(`${base}/readyz`)).status, 503);
   databaseHealthy = true;

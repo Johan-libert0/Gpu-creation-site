@@ -80,9 +80,16 @@ function sendError(response, status, message) {
 }
 
 function databaseErrorDetails(error) {
-  if (error?.code) return error.code;
-  if (typeof error?.message !== "string") return "unknown database error";
-  return error.message.replace(/postgres(?:ql)?:\/\/[^\s"'<>]+/gi, "postgres://[redacted]");
+  const details = [];
+  const seen = new Set();
+  for (let current = error; current && details.length < 4 && !seen.has(current); current = current.cause) {
+    seen.add(current);
+    const message = typeof current.message === "string" ? current.message : "";
+    const detail = [current.code, message].filter(Boolean).join(": ");
+    if (detail) details.push(detail);
+  }
+  return (details.length ? details.join(" <- ") : "unknown database error")
+    .replace(/postgres(?:ql)?:\/\/[^\s"'<>]+/gi, "postgres://[redacted]");
 }
 
 function roleFrom(request) {
@@ -513,11 +520,8 @@ function createServer(options = {}) {
   const runInference = options.runInference || runHuggingFaceGeneration;
   let databaseReady = !durableStore;
   const storeReady = durableStore
-    ? durableStore.initialize().then(() => { databaseReady = true; })
+    ? Promise.resolve().then(initializeDurableStore)
     : Promise.resolve();
-  storeReady.catch((error) => {
-    console.error("PostgreSQL initialization failed.", databaseErrorDetails(error));
-  });
   const app = express();
 
   app.disable("x-powered-by");
@@ -673,17 +677,49 @@ function createServer(options = {}) {
   let queueRunning = false;
   let activeQueueRun = Promise.resolve();
   let queueAbortController = null;
+  let databaseRetryTimer;
+  let resolveDatabaseRetry;
+  let shuttingDown = false;
   let closeResourcesPromise = null;
 
   function closeResources() {
     if (closeResourcesPromise) return closeResourcesPromise;
+    shuttingDown = true;
     if (queueTimer) clearInterval(queueTimer);
+    if (databaseRetryTimer) clearTimeout(databaseRetryTimer);
+    resolveDatabaseRetry?.();
+    databaseRetryTimer = null;
+    resolveDatabaseRetry = null;
     queueAbortController?.abort();
     closeResourcesPromise = (async () => {
       await activeQueueRun;
       if (durableStore) await durableStore.close();
     })();
     return closeResourcesPromise;
+  }
+
+  async function initializeDurableStore() {
+    let retryDelay = 1000;
+    while (!shuttingDown) {
+      try {
+        await durableStore.initialize();
+        databaseReady = true;
+        return;
+      } catch (error) {
+        console.error("PostgreSQL initialization failed.", databaseErrorDetails(error));
+        if (shuttingDown) return;
+        await new Promise((resolve) => {
+          resolveDatabaseRetry = resolve;
+          databaseRetryTimer = setTimeout(() => {
+            databaseRetryTimer = null;
+            resolveDatabaseRetry = null;
+            resolve();
+          }, retryDelay);
+          databaseRetryTimer.unref?.();
+        });
+        retryDelay = Math.min(retryDelay * 2, 30_000);
+      }
+    }
   }
 
   async function drainQueue() {
@@ -722,6 +758,7 @@ function createServer(options = {}) {
   server.on("listening", () => {
     if (durableStore) {
       storeReady.then(() => {
+        if (shuttingDown) return;
         queueTimer = setInterval(drainQueue, 1000);
         queueTimer.unref?.();
         void drainQueue();
@@ -779,4 +816,4 @@ if (require.main === module) {
   process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
-module.exports = { createServer, isAllowedUser, stateForIdentity };
+module.exports = { createServer, databaseErrorDetails, isAllowedUser, stateForIdentity };
