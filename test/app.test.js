@@ -17,6 +17,12 @@ test("prompt size limit is 64 KiB", () => {
   assert.equal(MAX_INPUT_BYTES, 64 * 1024);
 });
 
+test("Docker image explicitly copies the public site before building", async () => {
+  const dockerfile = await fs.readFile(path.join(__dirname, "..", "Dockerfile"), "utf8");
+  assert.match(dockerfile, /^COPY public\/ \.\/public\/$/m);
+  assert.match(dockerfile, /^RUN test -f public\/index\.html$/m);
+});
+
 test("payment records cannot claim funds moved", () => {
   const record = createPaymentRecord({ id: "job-1", buyerId: "buyer", priceUsd: 125 });
   assert.equal(PAYMENT_CONFIGURATION.enabled, false);
