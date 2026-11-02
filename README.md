@@ -73,11 +73,15 @@ Configure these values only in the hosting secret manager after independently ve
 - `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` — facilitator credentials
 - `DATABASE_URL` — required for durable settlement receipts
 
-The USDG address currently shown in `.env.example` is the address supplied for this integration. The operator has verified the metadata and transfer path in an approved test environment and with a controlled live transaction. The Render Blueprint enables x402 by default, so provide all required settings before deploying it and reverify if the token or transfer configuration changes. Render Free is a temporary demo setup: the web service can sleep, and the PostgreSQL database expires after 30 days without backups. Do not rely on it for durable payment receipts or production settlement. Inference and facilitator usage can still incur charges. Existing marketplace job payment records remain `not_settled`; this x402 route is not escrow and does not create contributor payouts.
+The USDG address currently shown in `.env.example` is the address supplied for this integration; independently verify the contract, token metadata, transfer method, and CDP facilitator support. Configuration alone does not confirm that a live payment succeeds. Validate the complete flow with a controlled transaction before relying on it. Render Free is a temporary demo setup: the web service can sleep, and the PostgreSQL database expires after 30 days without backups. Do not rely on it for durable payment receipts or production settlement. Inference and facilitator usage can still incur charges. Existing marketplace job payment records remain `not_settled`; this x402 route is not escrow and does not create contributor payouts.
 
-## Remaining production constraints
+## How security and payments work
 
-The application still cannot honestly be called a live production marketplace. Auth0 settings, Hugging Face token/model, a PostgreSQL service, and the encryption key must be supplied by the operator. The PostgreSQL schema and durable queue are implemented, but must be deployed and tested against the selected database and inference model. Provider retention review, monitoring, abuse controls, backups, and independent security review remain outstanding.
+- **Account access:** Auth0 handles production sign-in. APIs require an authenticated session and a verified email on the configured allowlist, and marketplace records are scoped to the signed-in buyer or provider. Passwords are handled by Auth0; server credentials belong in the hosting provider's secret store.
+- **Prompt handling:** Accepted marketplace prompts are encrypted with AES-256-GCM while queued in PostgreSQL, then sent server-side to Hugging Face Inference Providers for generation. The selected inference provider controls its own processing and retention. Queue encryption is not a secure-deletion guarantee; do not submit confidential prompts unless the provider's terms are suitable.
+- **Direct-generation payment:** The separate x402 endpoint charges 0.01 USDG on Arbitrum One for a successful response. A supported browser wallet signs the payment authorization, the CDP facilitator verifies and settles it, and the service records a deduplicated receipt in PostgreSQL. The end-to-end payment flow depends on valid token/facilitator settings, available inference, and working receipt storage.
+- **Marketplace payments:** A proposed job payout is an indicative record only; posting or approving a marketplace job does not transfer funds. The x402 direct-generation flow is not marketplace escrow and does not pay providers. The separate escrow contract is a local test project, not part of the deployed payment flow.
+- **Hosting and costs:** Render Free web services can sleep, and Free PostgreSQL expires after 30 days without backups. Inference and facilitator usage may incur charges. The x402 payment integration has been configured; verify the live flow with a controlled test before relying on it for payments.
 
 ## What works
 
@@ -96,10 +100,6 @@ The application still cannot honestly be called a live production marketplace. A
 - The arbitrator is a centralized trust role in this prototype. A production design should use a reviewed dispute process and likely a multisig or other carefully governed mechanism.
 - The contract takes direct ERC-20 `transferFrom`; it is not integrated with x402 and has not been deployed to Arbitrum or a public testnet.
 - Never deploy this contract or send real tokens based only on these tests. Independent smart-contract security review, deployment controls, verified token compatibility, and end-to-end testnet validation are required first.
-
-## Privacy and deployment warning
-
-Do not submit sensitive or confidential prompts. The browser sends prompt text to this service; when a job is accepted, the server forwards it to Hugging Face Inference Providers. Hugging Face's selected inference provider controls processing and retention outside this repository. The application does not implement privacy-preserving computation or secure deletion. Do not deploy publicly until all remaining production constraints above have been addressed and reviewed.
 
 ## Public integration references
 
