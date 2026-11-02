@@ -15,7 +15,7 @@ npm run test:escrow
 npm run dev
 ```
 
-Open <http://127.0.0.1:4173>. The site has separate routes for:
+After `npm run dev`, open the local address printed in the terminal. The deployed site is at <https://gpufiles.onrender.com>. The site has separate routes for:
 
 - `/` — blue-and-white marketplace landing page
 - `/how-it-works` — job lifecycle and approval flow

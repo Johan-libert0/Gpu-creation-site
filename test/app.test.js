@@ -504,7 +504,9 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   assert.match(pageHtml, /Your prompts/);
   assert.match(pageHtml, /LOCAL PREVIEW/);
   assert.match(pageHtml, /Provider and payment availability depend on the current service configuration/);
-  assert.match(pageHtml, /Render enables separate x402 paid text generation/);
+  assert.match(pageHtml, /Render enables a separate x402 payment flow/);
+  assert.match(pageHtml, /marketplace job payouts are proposals and do not transfer funds/);
+  assert.match(pageHtml, /Render enables x402 checkout for 0\.01 USDG on Arbitrum One/);
   assert.doesNotMatch(pageHtml, /External GPU and x402 settlement remain disabled until configured/);
   assert.match(pageHtml, /id="job-prompt"/);
   assert.match(pageHtml, /Hugging Face Inference Providers/);
@@ -513,6 +515,8 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   const docsPage = await fetch(`${base}/docs`);
   const docsHtml = await docsPage.text();
   assert.match(docsHtml, /Render Blueprint uses Free web and PostgreSQL plans and sets <code>X402_ENABLED=true<\/code>/);
+  assert.match(docsHtml, /The deployed site is <a href="https:\/\/gpufiles\.onrender\.com">gpufiles\.onrender\.com<\/a>/);
+  assert.doesNotMatch(docsHtml, /127\.0\.0\.1:4173/);
   assert.match(docsHtml, /Free PostgreSQL expires after 30 days/);
   assert.match(docsHtml, /How security and payments work/);
   assert.match(docsHtml, /Marketplace payments:/);
