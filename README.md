@@ -73,7 +73,7 @@ Configure these values only in the hosting secret manager after independently ve
 - `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` — facilitator credentials
 - `DATABASE_URL` — required for durable settlement receipts
 
-The USDG address currently shown in `.env.example` is the address supplied for this integration; independently verify the contract, token metadata, transfer method, and CDP facilitator support. Configuration alone does not confirm that a live payment succeeds. Validate the complete flow with a controlled transaction before relying on it. Render Free is a temporary demo setup: the web service can sleep, and the PostgreSQL database expires after 30 days without backups. Do not rely on it for durable payment receipts or production settlement. Inference and facilitator usage can still incur charges. Existing marketplace job payment records remain `not_settled`; this x402 route is not escrow and does not create contributor payouts.
+Set the USDG contract address, token decimals, EIP-712 domain metadata, and transfer method to match the token and facilitator used by the integration. Render Free web services can sleep, and the PostgreSQL database expires after 30 days without backups. Do not rely on it for durable payment receipts or production settlement. Inference and facilitator usage can still incur charges. Existing marketplace job payment records remain `not_settled`; this x402 route is not escrow and does not create contributor payouts.
 
 ## How security and payments work
 
@@ -81,7 +81,7 @@ The USDG address currently shown in `.env.example` is the address supplied for t
 - **Prompt handling:** Accepted marketplace prompts are encrypted with AES-256-GCM while queued in PostgreSQL, then sent server-side to Hugging Face Inference Providers for generation. The selected inference provider controls its own processing and retention. Queue encryption is not a secure-deletion guarantee; do not submit confidential prompts unless the provider's terms are suitable.
 - **Direct-generation payment:** The separate x402 endpoint charges 0.01 USDG on Arbitrum One for a successful response. A supported browser wallet signs the payment authorization, the CDP facilitator verifies and settles it, and the service records a deduplicated receipt in PostgreSQL. The end-to-end payment flow depends on valid token/facilitator settings, available inference, and working receipt storage.
 - **Marketplace payments:** A proposed job payout is an indicative record only; posting or approving a marketplace job does not transfer funds. The x402 direct-generation flow is not marketplace escrow and does not pay providers. The separate escrow contract is a local test project, not part of the deployed payment flow.
-- **Hosting and costs:** Render Free web services can sleep, and Free PostgreSQL expires after 30 days without backups. Inference and facilitator usage may incur charges. The x402 payment integration has been configured; verify the live flow with a controlled test before relying on it for payments.
+- **Hosting and costs:** Render Free web services can sleep, and Free PostgreSQL expires after 30 days without backups. Inference and facilitator usage may incur charges. The Render Blueprint enables x402 and lists the required payment settings above.
 
 ## What works
 
