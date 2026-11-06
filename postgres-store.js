@@ -90,6 +90,14 @@ function createPostgresStore({ connectionString = process.env.DATABASE_URL, key 
         note TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS marketplace_payments_job ON marketplace_payments (job_id);
+      CREATE TABLE IF NOT EXISTS marketplace_reviews (
+        job_id TEXT PRIMARY KEY REFERENCES marketplace_jobs(id) ON DELETE CASCADE,
+        buyer_id TEXT NOT NULL,
+        rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        comment TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS marketplace_reviews_created ON marketplace_reviews (created_at DESC);
       CREATE TABLE IF NOT EXISTS marketplace_api_payments (
         id TEXT PRIMARY KEY,
         request_id TEXT NOT NULL,
@@ -139,9 +147,15 @@ function createPostgresStore({ connectionString = process.env.DATABASE_URL, key 
   }
 
   async function readState() {
-    const [jobs, payments] = await Promise.all([
+    const [jobs, payments, reviews] = await Promise.all([
       database.query("SELECT * FROM marketplace_jobs ORDER BY created_at DESC"),
-      database.query("SELECT * FROM marketplace_payments ORDER BY id DESC")
+      database.query("SELECT * FROM marketplace_payments ORDER BY id DESC"),
+      database.query(
+        `SELECT r.job_id, r.buyer_id, r.rating, r.comment, r.created_at, j.title
+         FROM marketplace_reviews r
+         JOIN marketplace_jobs j ON j.id = r.job_id
+         ORDER BY r.created_at DESC`
+      )
     ]);
     return {
       jobs: jobs.rows.map((row) => ({
@@ -170,8 +184,95 @@ function createPostgresStore({ connectionString = process.env.DATABASE_URL, key 
         status: row.status,
         transactionId: row.transaction_id,
         note: row.note
+      })),
+      reviews: reviews.rows.map((row) => ({
+        jobId: row.job_id,
+        buyerId: row.buyer_id,
+        jobTitle: row.title,
+        rating: row.rating,
+        comment: row.comment,
+        createdAt: row.created_at.toISOString()
       }))
     };
+  }
+
+  async function readPublicReviews() {
+    const [summary, reviews] = await Promise.all([
+      database.query("SELECT COUNT(*)::int AS count, AVG(rating)::numeric(3,1) AS average_rating FROM marketplace_reviews"),
+      database.query(
+        `SELECT j.title, r.rating, r.comment, r.created_at
+         FROM marketplace_reviews r
+         JOIN marketplace_jobs j ON j.id = r.job_id
+         ORDER BY r.created_at DESC
+         LIMIT 12`
+      )
+    ]);
+    return {
+      count: summary.rows[0].count,
+      averageRating: summary.rows[0].average_rating === null
+        ? null
+        : Number(summary.rows[0].average_rating),
+      reviews: reviews.rows.map((row) => ({
+        jobTitle: row.title,
+        rating: row.rating,
+        comment: row.comment,
+        createdAt: row.created_at.toISOString()
+      }))
+    };
+  }
+
+  async function createReview(jobId, buyerId, rating, comment) {
+    const client = await database.connect();
+    try {
+      await client.query("BEGIN");
+      const selected = await client.query(
+        "SELECT buyer_id, status, title FROM marketplace_jobs WHERE id = $1 FOR UPDATE",
+        [jobId]
+      );
+      if (!selected.rowCount) {
+        await client.query("ROLLBACK");
+        return { error: "not_found" };
+      }
+      const job = selected.rows[0];
+      if (job.buyer_id !== buyerId) {
+        await client.query("ROLLBACK");
+        return { error: "forbidden" };
+      }
+      if (!["completed", "approved_unpaid"].includes(job.status)) {
+        await client.query("ROLLBACK");
+        return { error: "not_completed" };
+      }
+      const existing = await client.query(
+        "SELECT 1 FROM marketplace_reviews WHERE job_id = $1",
+        [jobId]
+      );
+      if (existing.rowCount) {
+        await client.query("ROLLBACK");
+        return { error: "already_reviewed" };
+      }
+      const created = await client.query(
+        `INSERT INTO marketplace_reviews (job_id, buyer_id, rating, comment)
+         VALUES ($1,$2,$3,$4)
+         RETURNING created_at`,
+        [jobId, buyerId, rating, comment]
+      );
+      await client.query("COMMIT");
+      return {
+        review: {
+          jobId,
+          buyerId,
+          jobTitle: job.title,
+          rating,
+          comment,
+          createdAt: created.rows[0].created_at.toISOString()
+        }
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async function createJob(job, payment, text) {
@@ -408,6 +509,8 @@ function createPostgresStore({ connectionString = process.env.DATABASE_URL, key 
     checkHealth,
     recordApiPayment,
     readState,
+    readPublicReviews,
+    createReview,
     createJob,
     acceptJob,
     claimNextJob,

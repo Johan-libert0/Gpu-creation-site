@@ -1,6 +1,6 @@
 # GPU Foundry
 
-GPU Foundry is a Node.js marketplace prototype for prompt-generation jobs. Accepted prompts can be sent server-side to Hugging Face Inference Providers. It includes a blue-and-white landing page, dedicated How it works and Provider pages, floating capsule navigation, and a responsive marketplace dashboard.
+GPU Foundry is a Node.js request-and-review workflow for text-generation jobs. A buyer posts a prompt and proposed terms, an eligible marketplace provider may accept it, and the configured Hugging Face Inference Providers integration generates text for the buyer to review. The accepting provider's own GPU is not used by this inference integration. The public site explains the workflow and text-first use cases, and displays real buyer reviews anonymously after completed jobs.
 
 The default is a local preview, not a live marketplace or production privacy system. Production mode fails closed without Auth0 and scopes dashboard records to the signed-in user. Prompt jobs stay disabled until Hugging Face credentials/model are configured and the operator acknowledges review of provider data-handling terms. An official x402 agent endpoint is implemented; the Render Blueprint explicitly enables it and requires its USDG, recipient, facilitator, and durable receipt settings.
 
@@ -17,13 +17,13 @@ npm run dev
 
 After `npm run dev`, open the local address printed in the terminal. The deployed site is at <https://gpufiles.onrender.com>. The site has separate routes for:
 
-- `/` — blue-and-white marketplace landing page
+- `/` — animated product overview, job examples, workflow, and anonymous buyer reviews
 - `/how-it-works` — job lifecycle and approval flow
-- `/providers` — provider terms and responsibilities
-- `/login` — public branded sign-in page; credentials are entered on Auth0
-- `/auth/signup` — starts Auth0-hosted account registration; Auth0 must have sign-ups enabled
+- `/providers` — marketplace provider terms and responsibilities
+- `/login` — public sign-in or account-access gateway; credentials are entered on Auth0
 - `/dashboard` — authenticated marketplace dashboard
 - `/docs` — in-site operator and developer documentation
+- `GET /api/reviews` — public aggregate rating and recent anonymous reviews
 
 To enable actual prompt generation locally, add `GPU_PROVIDER=huggingface-inference`, `HF_TOKEN`, and `HF_MODEL` to the ignored `.env` file. Create a fine-grained Hugging Face token with Inference Providers permission and select a currently supported chat-completion model. Never paste the token into chat or commit it. Provider usage may incur charges; a working token does not guarantee free GPU capacity.
 
@@ -89,6 +89,7 @@ Set the USDG contract address, token decimals, EIP-712 domain metadata, and tran
 - Public visitors can browse `/`, `/how-it-works`, `/providers`, and `/docs`; `/dashboard` requires sign-in when Auth0 is configured. `/login` is a branded gateway to Auth0 and never asks for a password itself.
 - Production prompt jobs call Hugging Face's chat-completions endpoint server-side; prompts are not sent from the browser directly to Hugging Face, and the token is never exposed in public runtime data.
 - Buyers can approve a marketplace result, but its payment record remains unpaid. Render enables the separate x402 agent endpoint and browser checkout; its payment settings must be supplied and validated, and inference must be available, before paid generation can succeed.
+- A buyer can submit one 1-to-5-star rating and review of up to 1,000 characters for their own completed job. Public reviews omit buyer account identifiers; no sample reviews are preloaded.
 - Local preview stores job metadata in `data/state.json` and pending prompts in process memory. Production uses PostgreSQL for durable job/payment metadata and the persistent queue; prompts are encrypted using `DATA_ENCRYPTION_KEY` and retained only while awaiting or undergoing processing.
 
 ## Test-only escrow contract

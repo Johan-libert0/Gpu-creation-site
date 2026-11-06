@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Manrope", Arial, Helvetica, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -13,10 +13,10 @@ body { width: 100%; max-width: 100%; }
 body {
   min-height: 100vh;
   margin: 0;
-  color: #172534;
+  color: #f5f5f5;
   background:
-    radial-gradient(ellipse at 12% 18%, rgba(52, 164, 244, .72), transparent 34%),
-    linear-gradient(135deg, #0879ce, #0755a0 68%, #073e77);
+    radial-gradient(ellipse at 12% 18%, rgba(255,255,255,.07), transparent 34%),
+    #000;
 }
 
 a { color: inherit; }
@@ -55,7 +55,7 @@ a { color: inherit; }
   border: 1px solid rgba(255,255,255,.4);
   border-radius: 22px;
   background: #fff;
-  box-shadow: 0 28px 80px rgba(0, 27, 62, .32);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .48);
 }
 
 .auth-welcome {
@@ -70,8 +70,8 @@ a { color: inherit; }
   color: #fff;
   isolation: isolate;
   background:
-    radial-gradient(ellipse at 95% 16%, rgba(52, 164, 244, .56), transparent 34%),
-    linear-gradient(145deg, #147fc7, #07559c 70%, #064579);
+    radial-gradient(ellipse at 95% 16%, rgba(255,255,255,.08), transparent 34%),
+    linear-gradient(145deg, #242424, #111 70%, #080808);
 }
 
 .auth-welcome::after {
@@ -82,7 +82,7 @@ a { color: inherit; }
   width: 108%;
   height: 139%;
   border-radius: 50%;
-  background: linear-gradient(145deg, rgba(1, 62, 122, .76), rgba(0, 54, 105, .17));
+  background: linear-gradient(145deg, rgba(255,255,255,.055), rgba(0,0,0,.2));
   content: "";
 }
 
@@ -94,6 +94,7 @@ a { color: inherit; }
   color: #fff;
   font-size: 18px;
   font-weight: 700;
+  font-family: "Space Grotesk", "Manrope", Arial, sans-serif;
   text-decoration: none;
 }
 
@@ -104,19 +105,19 @@ a { color: inherit; }
   place-items: center;
   border: 1px solid rgba(255,255,255,.45);
   border-radius: 12px;
-  background: rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
   font-size: 17px;
 }
 
 .welcome-copy { z-index: 1; max-width: 390px; margin: auto 0; }
-.auth-kicker { margin: 0 0 16px; color: #4781ff; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
-.auth-welcome .auth-kicker { color: #b8dcff; }
+.auth-kicker { margin: 0 0 16px; color: #666; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
+.auth-welcome .auth-kicker { color: #ccc; }
 .welcome-copy h1 { max-width: 360px; margin: 0 0 18px; font-size: clamp(38px, 5vw, 58px); line-height: 1.03; letter-spacing: -.045em; }
 .welcome-copy > p:last-child { max-width: 340px; margin: 0; color: rgba(255,255,255,.82); font-size: 15px; line-height: 1.75; }
 .welcome-foot { z-index: 1; display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.8); font-size: 12px; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #9af0c6; box-shadow: 0 0 14px rgba(154,240,198,.8); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff8058; box-shadow: 0 0 14px rgba(255,112,67,.55); }
 
-.orb { position: absolute; z-index: -1; display: block; border-radius: 50%; background: linear-gradient(145deg, rgba(21,157,243,.9), rgba(0,95,181,.4)); }
+.orb { position: absolute; z-index: -1; display: block; border-radius: 50%; background: linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.015)); }
 .orb-one { right: -42px; bottom: 92px; width: 150px; height: 150px; }
 .orb-two { right: 90px; bottom: -96px; width: 230px; height: 230px; }
 .orb-three { top: 36%; right: 24px; width: 56px; height: 56px; opacity: .7; }
@@ -125,16 +126,16 @@ a { color: inherit; }
 .auth-panel-inner { width: 100%; max-width: 400px; margin: auto; }
 .auth-panel h2 { margin: 0 0 12px; color: #162433; font-size: 36px; letter-spacing: -.04em; }
 .auth-description { margin: 0 0 32px; color: #697887; font-size: 15px; line-height: 1.65; }
-.auth-submit { display: flex; min-height: 54px; align-items: center; justify-content: space-between; padding: 0 20px; border: 1px solid #064b83; border-radius: 9px; color: #fff; background: #075291; box-shadow: 0 8px 18px rgba(7,82,145,.18); font-size: 15px; font-weight: 700; text-decoration: none; transition: background .18s ease, transform .18s ease; }
-.auth-submit:hover { transform: translateY(-1px); background: #063e70; }
-.auth-submit:focus-visible, .auth-signup a:focus-visible, .auth-back-link:focus-visible, .auth-back:focus-visible { outline: 3px solid #3c72ff; outline-offset: 3px; }
+.auth-submit { display: flex; min-height: 54px; align-items: center; justify-content: space-between; padding: 0 20px; border: 1px solid #111; border-radius: 9px; color: #111; background: #f2f2f2; box-shadow: 0 8px 18px rgba(0,0,0,.12); font-size: 15px; font-weight: 700; text-decoration: none; transition: background .18s ease, transform .18s ease; }
+.auth-submit:hover { transform: translateY(-1px); background: #fff; }
+.auth-submit:focus-visible, .auth-signup a:focus-visible, .auth-back-link:focus-visible, .auth-back:focus-visible { outline: 3px solid #ff7043; outline-offset: 3px; }
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 20px; color: #92a0ad; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
 .auth-divider::before, .auth-divider::after { height: 1px; flex: 1; background: #e7ebef; content: ""; }
 .auth-note { margin: 0; padding: 14px 15px; border: 1px solid #e6edf3; border-radius: 9px; color: #637382; background: #f7fafc; font-size: 12px; line-height: 1.65; }
 .auth-signup { margin: 20px 0 0; color: #697887; font-size: 13px; }
 .auth-signup a { color: #075291; font-weight: 700; text-decoration: none; }
 .auth-signup a:hover { text-decoration: underline; }
-.auth-back-link { display: inline-block; margin-top: 26px; color: #075291; font-size: 13px; font-weight: 700; text-decoration: none; }
+.auth-back-link { display: inline-block; margin-top: 26px; color: #333; font-size: 13px; font-weight: 700; text-decoration: none; }
 .auth-legal { margin-top: 36px; color: #8a97a3; font-size: 11px; text-align: center; }
 .auth-footer { margin: 18px 0 0; color: rgba(255,255,255,.76); font-size: 12px; text-align: center; }
 .auth-footer span { margin: 0 7px; }

@@ -6,7 +6,10 @@
     <meta name="theme-color" content="#0d6fc2">
     <meta name="description" content="Sign in securely to GPU Foundry using Auth0.">
     <title>Sign in — GPU Foundry</title>
-    <link rel="stylesheet" href="/login.css?v=2">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/login.css?v=3">
   </head>
   <body>
     <main class="auth-page">
@@ -18,30 +21,29 @@
             <span>GPU Foundry</span>
           </a>
           <div class="welcome-copy">
-            <p class="auth-kicker">Your GPU. Your files. Your terms.</p>
-            <h1 id="welcome-title">Compute on your terms.</h1>
-            <p>Access your workspace to review jobs, manage GPU work, and keep every decision in your hands.</p>
+            <p class="auth-kicker">Prompt work · visible terms · human review</p>
+            <h1 id="welcome-title">Text generation, with terms up front.</h1>
+            <p>Access your workspace to post text jobs, review generated results, and manage marketplace work. Accepted jobs use the configured Hugging Face model, not the accepting user’s GPU.</p>
           </div>
           <span class="orb orb-one" aria-hidden="true"></span>
           <span class="orb orb-two" aria-hidden="true"></span>
           <span class="orb orb-three" aria-hidden="true"></span>
-          <div class="welcome-foot"><span class="status-dot"></span> Prompt generation with provider terms shown upfront</div>
+          <div class="welcome-foot"><span class="status-dot"></span> Prompt jobs · generated text · buyer review</div>
         </div>
         <div class="auth-panel">
           <div class="auth-panel-inner">
             <p class="auth-kicker">GPU FOUNDRY WORKSPACE</p>
-            <h2>Sign in</h2>
-            <p class="auth-description">Continue to your private workspace through Auth0’s secure sign-in.</p>
-            <a class="auth-submit" href="/auth/login">Continue securely <span aria-hidden="true">→</span></a>
+            <h2>Sign in or create an account</h2>
+            <p class="auth-description">Continue to your workspace through Auth0’s secure account access.</p>
+            <a class="auth-submit" href="/auth/login">Continue to Auth0 <span aria-hidden="true">→</span></a>
             <div class="auth-divider"><span>SECURE ACCOUNT ACCESS</span></div>
             <p class="auth-note">Your password is entered on Auth0’s sign-in page, not on this website. GPU Foundry does not receive or store your password.</p>
-            <p class="auth-signup">New to GPU Foundry? <a href="/auth/signup">Create an account</a></p>
             <a class="auth-back-link" href="/">← Back to the public site</a>
           </div>
           <div class="auth-legal">Protected workspace · Authentication by Auth0</div>
         </div>
       </section>
-      <p class="auth-footer">GPU Foundry <span>·</span> Your compute, under your control.</p>
+      <p class="auth-footer">GPU Foundry <span>·</span> Prompt work, with clear terms.</p>
     </main>
   </body>
 </html>

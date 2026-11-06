@@ -3,11 +3,11 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
-const { createServer, databaseErrorDetails, isAllowedUser, stateForIdentity } = require("../server");
+const { createServer, databaseErrorDetails, isAllowedUser, publicReviewSummary, stateForIdentity } = require("../server");
 const { MAX_INPUT_BYTES } = require("../worker");
 const { PAYMENT_CONFIGURATION, createPaymentRecord } = require("../payments");
 const { getRuntimeConfig, validateRuntimeConfig } = require("../config");
-const { decryptSource, encryptSource, encryptionKey, postgresSslOptions } = require("../postgres-store");
+const { createPostgresStore, decryptSource, encryptSource, encryptionKey, postgresSslOptions } = require("../postgres-store");
 const { redactText } = require("../privacy");
 const { INFERENCE_URL, MAX_GENERATION_DURATION_MS, runHuggingFaceGeneration } = require("../huggingface");
 const { getX402Configuration, validateX402Configuration } = require("../x402-payment");
@@ -28,6 +28,65 @@ test("payment records cannot claim funds moved", () => {
   assert.equal(PAYMENT_CONFIGURATION.enabled, false);
   assert.equal(record.status, "not_settled");
   assert.equal(record.transactionId, null);
+});
+
+test("public review summaries are anonymous and compute averages from real reviews", () => {
+  assert.deepEqual(publicReviewSummary([]), { count: 0, averageRating: null, reviews: [] });
+  const summary = publicReviewSummary([
+    { jobId: "one", buyerId: "private-buyer", jobTitle: "Summarize report", rating: 5, comment: "Clear result.", createdAt: "2025-01-02T00:00:00.000Z" },
+    { jobId: "two", buyerId: "another-buyer", jobTitle: "Extract tasks", rating: 4, comment: "Useful.", createdAt: "2025-01-01T00:00:00.000Z" }
+  ]);
+  assert.equal(summary.count, 2);
+  assert.equal(summary.averageRating, 4.5);
+  assert.equal(summary.reviews[0].jobTitle, "Summarize report");
+  assert.equal("buyerId" in summary.reviews[0], false);
+  assert.equal("jobId" in summary.reviews[0], false);
+});
+
+test("PostgreSQL review writes lock the job and enforce buyer ownership and uniqueness", async () => {
+  const statements = [];
+  let existing = false;
+  let job = { buyer_id: "buyer-1", status: "completed", title: "Summarize report" };
+  let releases = 0;
+  const client = {
+    query: async (statement) => {
+      statements.push(statement.trim());
+      if (statement.includes("SELECT buyer_id, status, title")) {
+        return { rowCount: job ? 1 : 0, rows: job ? [job] : [] };
+      }
+      if (statement.includes("SELECT 1 FROM marketplace_reviews")) {
+        return { rowCount: existing ? 1 : 0, rows: existing ? [{ "?column?": 1 }] : [] };
+      }
+      if (statement.includes("INSERT INTO marketplace_reviews")) {
+        return { rowCount: 1, rows: [{ created_at: new Date("2025-01-01T00:00:00.000Z") }] };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release: () => { releases += 1; }
+  };
+  const store = createPostgresStore({
+    connectionString: "postgres://localhost/gpufiles-test",
+    key: "11".repeat(32),
+    pool: { connect: async () => client }
+  });
+
+  const created = await store.createReview("job-1", "buyer-1", 5, "Clear result.");
+  assert.equal(created.review.jobId, "job-1");
+  assert.equal(created.review.rating, 5);
+  assert.ok(statements.some((statement) => statement.includes("FOR UPDATE")));
+  assert.ok(statements.includes("COMMIT"));
+  assert.equal(releases, 1);
+
+  statements.length = 0;
+  assert.deepEqual(await store.createReview("job-1", "buyer-2", 4, "Not yours."), { error: "forbidden" });
+  assert.ok(statements.includes("ROLLBACK"));
+  assert.equal(releases, 2);
+
+  job = { ...job, status: "open" };
+  assert.deepEqual(await store.createReview("job-1", "buyer-1", 4, "Too early."), { error: "not_completed" });
+  existing = true;
+  job = { ...job, status: "completed" };
+  assert.deepEqual(await store.createReview("job-1", "buyer-1", 4, "Duplicate."), { error: "already_reviewed" });
 });
 
 test("PostgreSQL verifies TLS certificates by default and supports Render internal TLS", () => {
@@ -431,6 +490,10 @@ test("authenticated state is scoped to the caller and omits internal identifiers
       { id: "pay-a", jobId: "buyer-job", buyerId: "buyer-1", providerId: null, status: "not_settled", note: "No payment." },
       { id: "pay-b", jobId: "other-job", buyerId: "buyer-2", providerId: null, status: "not_settled", note: "No payment." },
       { id: "pay-c", jobId: "private-job", buyerId: "buyer-2", providerId: "provider-1", status: "not_settled", note: "No payment." }
+    ],
+    reviews: [
+      { jobId: "buyer-job", buyerId: "buyer-1", jobTitle: "Buyer job", rating: 5, comment: "Good.", createdAt: "2025-01-01T00:00:00.000Z" },
+      { jobId: "private-job", buyerId: "buyer-2", jobTitle: "Private job", rating: 3, comment: "Fine.", createdAt: "2025-01-02T00:00:00.000Z" }
     ]
   };
 
@@ -439,10 +502,13 @@ test("authenticated state is scoped to the caller and omits internal identifiers
   assert.deepEqual(buyerState.payments.map((payment) => payment.id), ["pay-a"]);
   assert.equal("buyerId" in buyerState.jobs[0], false);
   assert.equal("providerId" in buyerState.payments[0], false);
+  assert.deepEqual(buyerState.reviews.map((review) => review.jobId), ["buyer-job"]);
+  assert.equal("buyerId" in buyerState.reviews[0], false);
 
   const providerState = stateForIdentity(state, "provider", "provider-1");
   assert.deepEqual(providerState.jobs.map((job) => job.id), ["buyer-job", "other-job", "private-job"]);
   assert.deepEqual(providerState.payments.map((payment) => payment.id), ["pay-c"]);
+  assert.deepEqual(providerState.reviews.map((review) => review.jobId), ["buyer-job", "private-job"]);
 });
 
 test("local API enforces demo roles and prompt job lifecycle without storing prompts", async (t) => {
@@ -503,13 +569,18 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   const pageHtml = await page.text();
   assert.match(pageHtml, /Your prompts/);
   assert.match(pageHtml, /LOCAL PREVIEW/);
-  assert.match(pageHtml, /Provider and payment availability depend on the current service configuration/);
+  assert.match(pageHtml, /request-and-review workflow for text generation/);
+  assert.match(pageHtml, /The accepting user’s GPU is not used/);
   assert.match(pageHtml, /Render enables a separate x402 payment flow/);
   assert.match(pageHtml, /marketplace job payouts are proposals and do not transfer funds/);
   assert.match(pageHtml, /Render enables x402 checkout for 0\.01 USDG on Arbitrum One/);
   assert.doesNotMatch(pageHtml, /External GPU and x402 settlement remain disabled until configured/);
   assert.match(pageHtml, /id="job-prompt"/);
   assert.match(pageHtml, /Hugging Face Inference Providers/);
+  assert.match(pageHtml, /WHAT GPU FOUNDRY DOES/);
+  assert.match(pageHtml, /WHAT JOBS CAN DO/);
+  assert.match(pageHtml, /COMMUNITY FEEDBACK/);
+  assert.match(pageHtml, /no sample reviews are preloaded/i);
   const howItWorksPage = await fetch(`${base}/how-it-works`);
   assert.match(await howItWorksPage.text(), /Render enables a separate x402 wallet checkout/);
   const docsPage = await fetch(`${base}/docs`);
@@ -523,7 +594,9 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   assert.doesNotMatch(docsHtml, /What is not production-ready/);
   const loginPage = await fetch(`${base}/login`);
   assert.equal(loginPage.status, 200);
-  assert.match(await loginPage.text(), /href="\/auth\/signup">Create an account/);
+  const loginHtml = await loginPage.text();
+  assert.match(loginHtml, /Sign in or create an account/);
+  assert.doesNotMatch(loginHtml, /href="\/auth\/signup"/);
   const signupUnavailable = await fetch(`${base}/auth/signup`);
   assert.equal(signupUnavailable.status, 503);
   assert.match((await signupUnavailable.json()).error, /Auth0 is configured/);
@@ -536,6 +609,9 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   assert.equal(localStateResponse.status, 200);
   assert.equal(localStateResponse.headers.get("cache-control"), "no-store");
   assert.doesNotMatch(JSON.stringify(await localStateResponse.json()), /private-test-token/);
+  const emptyReviews = await fetch(`${base}/api/reviews`);
+  assert.equal(emptyReviews.status, 200);
+  assert.deepEqual(await emptyReviews.json(), { count: 0, averageRating: null, reviews: [] });
 
   const crossOrigin = await fetch(`${base}/api/demo/role`, {
     method: "POST",
@@ -566,6 +642,11 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   const { job } = await createdResponse.json();
   assert.equal(job.fileName, "text prompt");
   assert.equal("buyerId" in job, false);
+  const prematureReview = await post(`/api/jobs/${job.id}/reviews`, {
+    rating: 5,
+    comment: "Not finished yet."
+  });
+  assert.equal(prematureReview.status, 409);
 
   const acceptedResponse = await post(`/api/jobs/${job.id}/accept`, {}, "demoRole=provider");
   assert.equal(acceptedResponse.status, 200);
@@ -573,11 +654,49 @@ test("local API enforces demo roles and prompt job lifecycle without storing pro
   assert.equal(accepted.status, "completed");
   assert.equal(accepted.result.generatedText, "Generated response.");
 
+  const invalidRating = await post(`/api/jobs/${job.id}/reviews`, {
+    rating: 6,
+    comment: "Out of range."
+  });
+  assert.equal(invalidRating.status, 400);
+  const invalidComment = await post(`/api/jobs/${job.id}/reviews`, {
+    rating: 5,
+    comment: "   "
+  });
+  assert.equal(invalidComment.status, 400);
+  const oversizedComment = await post(`/api/jobs/${job.id}/reviews`, {
+    rating: 5,
+    comment: "x".repeat(1001)
+  });
+  assert.equal(oversizedComment.status, 400);
+  const providerReview = await post(`/api/jobs/${job.id}/reviews`, {
+    rating: 5,
+    comment: "Only the buyer can submit this."
+  }, "demoRole=provider");
+  assert.equal(providerReview.status, 403);
+  const reviewResponses = await Promise.all([
+    post(`/api/jobs/${job.id}/reviews`, { rating: 5, comment: "Clear and useful result." }),
+    post(`/api/jobs/${job.id}/reviews`, { rating: 4, comment: "A second review must be rejected." })
+  ]);
+  assert.deepEqual(reviewResponses.map((response) => response.status).sort(), [201, 409]);
+  const savedReview = await reviewResponses.find((response) => response.status === 201).json();
+  assert.equal(savedReview.review.rating, 5);
+  assert.equal(savedReview.review.comment, "Clear and useful result.");
+  assert.equal("buyerId" in savedReview.review, false);
+  const publicReviews = await (await fetch(`${base}/api/reviews`)).json();
+  assert.equal(publicReviews.count, 1);
+  assert.equal(publicReviews.averageRating, 5);
+  assert.equal(publicReviews.reviews[0].jobTitle, "Draft a greeting");
+  assert.equal("buyerId" in publicReviews.reviews[0], false);
+  assert.equal("jobId" in publicReviews.reviews[0], false);
+
   const approvalResponse = await post(`/api/jobs/${job.id}/approve`, {});
   assert.equal(approvalResponse.status, 200);
   const approved = await approvalResponse.json();
   assert.equal(approved.job.status, "approved_unpaid");
   assert.equal(approved.payment.status, "not_settled");
+  const stateAfterReview = await (await fetch(`${base}/api/state`)).json();
+  assert.equal(stateAfterReview.reviews.length, 1);
 
   const persisted = await fs.readFile(path.join(directory, "state.json"), "utf8");
   assert.equal(persisted.includes("Write a greeting."), false);
@@ -625,6 +744,7 @@ test("production APIs require Auth0 sessions and never expose demo identities", 
       checkHealth: async () => {
         if (!databaseHealthy) throw new Error("database unavailable");
       },
+      readPublicReviews: async () => ({ count: 0, averageRating: null, reviews: [] }),
       expireSources: async () => {},
       claimNextJob: async () => null,
       close: async () => {}
@@ -644,6 +764,11 @@ test("production APIs require Auth0 sessions and never expose demo identities", 
 
   const stateResponse = await fetch(`${base}/api/state`);
   assert.equal(stateResponse.status, 401);
+  assert.deepEqual(await (await fetch(`${base}/api/reviews`)).json(), {
+    count: 0,
+    averageRating: null,
+    reviews: []
+  });
   assert.match(stateResponse.headers.get("x-request-id"), /^[0-9a-f-]{36}$/i);
   assert.deepEqual(await (await fetch(`${base}/healthz`)).json(), { status: "ok" });
   for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -659,7 +784,7 @@ test("production APIs require Auth0 sessions and never expose demo identities", 
   const signInPage = await fetch(`${base}/login`);
   assert.equal(signInPage.status, 200);
   const signInHtml = await signInPage.text();
-  assert.match(signInHtml, /Continue securely/);
+  assert.match(signInHtml, /Continue to Auth0/);
   assert.doesNotMatch(signInHtml, /type=["']password["']/i);
   const roleResponse = await fetch(`${base}/api/demo/role`, {
     method: "POST",

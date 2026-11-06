@@ -48,9 +48,10 @@ async function readState() {
     if (!Array.isArray(state.jobs) || !Array.isArray(state.payments)) {
       throw new Error("Invalid local state structure.");
     }
+    if (!Array.isArray(state.reviews)) state.reviews = [];
     return state;
   } catch (error) {
-    if (error.code === "ENOENT") return { jobs: [], payments: [] };
+    if (error.code === "ENOENT") return { jobs: [], payments: [], reviews: [] };
     throw error;
   }
 }
@@ -64,6 +65,19 @@ function writeState(state) {
     await fs.rename(tempFile, dataFile);
   });
   return writeQueue;
+}
+
+let reviewQueue = Promise.resolve();
+async function withReviewLock(callback) {
+  const previous = reviewQueue;
+  let release;
+  reviewQueue = new Promise((resolve) => { release = resolve; });
+  await previous;
+  try {
+    return await callback();
+  } finally {
+    release();
+  }
 }
 
 function sendJson(response, status, value) {
@@ -175,6 +189,28 @@ function publicPayment(payment) {
   };
 }
 
+function publicReview(review, includeJobId = true) {
+  return {
+    ...(includeJobId ? { jobId: review.jobId } : {}),
+    jobTitle: review.jobTitle,
+    rating: review.rating,
+    comment: review.comment,
+    createdAt: review.createdAt
+  };
+}
+
+function publicReviewSummary(reviews) {
+  const sorted = [...reviews].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const averageRating = reviews.length
+    ? Number((reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1))
+    : null;
+  return {
+    count: reviews.length,
+    averageRating,
+    reviews: sorted.slice(0, 12).map((review) => publicReview(review, false))
+  };
+}
+
 function stateForIdentity(state, role, identity) {
   const jobs = role === "provider"
     ? state.jobs.filter((job) => job.status === "open" || job.providerId === identity)
@@ -184,9 +220,11 @@ function stateForIdentity(state, role, identity) {
     jobIds.has(payment.jobId) &&
     (payment.buyerId === identity || payment.providerId === identity)
   );
+  const reviews = (state.reviews || []).filter((review) => jobIds.has(review.jobId));
   return {
     jobs: jobs.map(publicJob),
-    payments: payments.map(publicPayment)
+    payments: payments.map(publicPayment),
+    reviews: reviews.map((review) => publicReview(review))
   };
 }
 
@@ -272,17 +310,25 @@ function discardTransientInput(jobId) {
 
 async function handleApi(request, response, url, durableStore, storeReady, runInference) {
   const runtime = getRuntimeConfig();
+  const publicReviewsRequest = request.method === "GET" && url.pathname === "/api/reviews";
   const authenticated = isAuthenticated(request);
-  if ((runtime.mode === "production" || runtime.auth.configured) && !authenticated) {
+  if (!publicReviewsRequest && (runtime.mode === "production" || runtime.auth.configured) && !authenticated) {
     return sendError(response, 401, "Authentication is required.");
   }
-  if (!isAllowedUser(request)) {
+  if (!publicReviewsRequest && !isAllowedUser(request)) {
     return sendError(response, 403, "This account is not authorized to use this application.");
   }
   if (authenticated && !request.oidc.user?.sub) {
     return sendError(response, 401, "The authenticated session has no valid user identifier.");
   }
   if (durableStore) await storeReady;
+
+  if (publicReviewsRequest) {
+    const summary = durableStore
+      ? await durableStore.readPublicReviews()
+      : publicReviewSummary((await readState()).reviews || []);
+    return sendJson(response, 200, summary);
+  }
 
   const role = roleFrom(request);
   if (request.method === "GET" && url.pathname === "/api/state") {
@@ -291,7 +337,11 @@ async function handleApi(request, response, url, durableStore, storeReady, runIn
     const authenticatedMode = runtime.mode === "production" || runtime.auth.configured;
     const visibleState = authenticatedMode
       ? stateForIdentity(state, role, identity)
-      : { jobs: state.jobs.map(publicJob), payments: state.payments.map(publicPayment) };
+      : {
+          jobs: state.jobs.map(publicJob),
+          payments: state.payments.map(publicPayment),
+          reviews: (state.reviews || []).map((review) => publicReview(review))
+        };
     return sendJson(response, 200, {
       role,
       authenticated,
@@ -302,6 +352,7 @@ async function handleApi(request, response, url, durableStore, storeReady, runIn
         : null,
       jobs: visibleState.jobs,
       payments: visibleState.payments,
+      reviews: visibleState.reviews,
       paymentConfiguration: {
         enabled: false,
         protocol: PAYMENT_CONFIGURATION.protocol,
@@ -338,6 +389,54 @@ async function handleApi(request, response, url, durableStore, storeReady, runIn
       "cache-control": "no-store"
     });
     return response.end();
+  }
+
+  const reviewMatch = url.pathname.match(/^\/api\/jobs\/([0-9a-f-]+)\/reviews$/i);
+  if (reviewMatch) {
+    if (role !== "buyer") return sendError(response, 403, "Only a buyer can review a completed job.");
+    const body = await readJson(request);
+    const rating = body.rating;
+    const comment = typeof body.comment === "string" ? body.comment.trim() : "";
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return sendError(response, 400, "Choose a rating from 1 to 5 stars.");
+    }
+    if (!comment || comment.length > 1000) {
+      return sendError(response, 400, "Write a review of 1 to 1,000 characters.");
+    }
+    const buyerId = identityFrom(request);
+    if (durableStore) {
+      const result = await durableStore.createReview(reviewMatch[1], buyerId, rating, comment);
+      if (result.error === "not_found") return sendError(response, 404, "Job not found.");
+      if (result.error === "forbidden") return sendError(response, 403, "You can only review your own jobs.");
+      if (result.error === "not_completed") return sendError(response, 409, "Only completed jobs can be reviewed.");
+      if (result.error === "already_reviewed") return sendError(response, 409, "This job already has a review.");
+      return sendJson(response, 201, { review: publicReview(result.review) });
+    }
+    const result = await withReviewLock(async () => {
+      const state = await readState();
+      const job = state.jobs.find((item) => item.id === reviewMatch[1]);
+      if (!job) return { status: 404, error: "Job not found." };
+      if (job.buyerId !== buyerId) return { status: 403, error: "You can only review your own jobs." };
+      if (!["completed", "approved_unpaid"].includes(job.status)) {
+        return { status: 409, error: "Only completed jobs can be reviewed." };
+      }
+      if (state.reviews.some((review) => review.jobId === job.id)) {
+        return { status: 409, error: "This job already has a review." };
+      }
+      const review = {
+        jobId: job.id,
+        jobTitle: job.title,
+        buyerId,
+        rating,
+        comment,
+        createdAt: new Date().toISOString()
+      };
+      state.reviews.unshift(review);
+      await writeState(state);
+      return { review };
+    });
+    if (result.error) return sendError(response, result.status, result.error);
+    return sendJson(response, 201, { review: publicReview(result.review) });
   }
 
   if (url.pathname === "/api/jobs") {
@@ -477,7 +576,7 @@ function setSecurityHeaders(response) {
   response.setHeader("referrer-policy", "no-referrer");
   response.setHeader("x-frame-options", "DENY");
   response.setHeader("permissions-policy", "camera=(), microphone=(), geolocation=()");
-  response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'");
+  response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors 'none'");
   if (getRuntimeConfig().mode === "production") {
     response.setHeader("strict-transport-security", "max-age=31536000; includeSubDomains");
   }
@@ -816,4 +915,10 @@ if (require.main === module) {
   process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
-module.exports = { createServer, databaseErrorDetails, isAllowedUser, stateForIdentity };
+module.exports = {
+  createServer,
+  databaseErrorDetails,
+  isAllowedUser,
+  publicReviewSummary,
+  stateForIdentity
+};

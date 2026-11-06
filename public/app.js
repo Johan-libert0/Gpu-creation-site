@@ -4,6 +4,12 @@ const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
 const motionSelector = [
   ".hero-copy",
   ".hero-visual",
+  ".landing-section > *",
+  ".signal-card",
+  ".step-card",
+  ".task-card",
+  ".review-card",
+  ".flow-visual",
   ".info-hero",
   ".info-grid > *",
   ".docs-index",
@@ -36,6 +42,50 @@ function registerMotionElements(root = document) {
       pendingMotionElements.add(element);
       motionObserver.observe(element);
     }
+  }
+}
+
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+async function loadPublicReviews(container) {
+  const average = document.querySelector("#review-average");
+  const count = document.querySelector("#review-count");
+  try {
+    const response = await fetch("/api/reviews", { headers: { accept: "application/json" } });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Community reviews could not be loaded.");
+    average.textContent = data.averageRating === null ? "—" : data.averageRating.toFixed(1);
+    count.textContent = `${data.count} ${data.count === 1 ? "review" : "reviews"}`;
+    container.replaceChildren();
+    if (!data.reviews.length) {
+      container.append(element("p", "review-empty", "No reviews yet. Buyers can share feedback after a job is completed."));
+      return;
+    }
+    for (const review of data.reviews) {
+      const card = element("article", "review-card");
+      const top = element("div", "review-card-top");
+      top.append(
+        element("strong", "review-job-title", review.jobTitle),
+        element("span", "review-stars", `${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}`)
+      );
+      const date = new Date(review.createdAt);
+      card.append(top, element("p", "", review.comment));
+      card.append(element("time", "review-date", Number.isNaN(date.valueOf())
+        ? "Completed job review"
+        : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date)));
+      container.append(card);
+    }
+    registerMotionElements(container);
+  } catch (error) {
+    average.textContent = "—";
+    count.textContent = "Reviews unavailable";
+    const detail = error instanceof Error ? error.message : "The request failed.";
+    container.replaceChildren(element("p", "review-empty", `Community reviews could not be loaded: ${detail}`));
   }
 }
 
@@ -75,12 +125,28 @@ if (!motionPreference.matches) {
 if (window.location.pathname !== "/dashboard") {
   const mobileToggle = document.querySelector("[data-nav-toggle]");
   const nav = document.querySelector("[data-pill-nav]");
+  const setMenuOpen = (open) => {
+    mobileToggle?.setAttribute("aria-expanded", String(open));
+    mobileToggle?.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    nav?.classList.toggle("is-open", open);
+  };
   mobileToggle?.addEventListener("click", () => {
     const open = mobileToggle.getAttribute("aria-expanded") === "true";
-    mobileToggle.setAttribute("aria-expanded", String(!open));
-    nav?.classList.toggle("is-open", !open);
+    setMenuOpen(!open);
+  });
+  nav?.addEventListener("click", (event) => {
+    if (event.target.closest("a")) setMenuOpen(false);
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-nav-toggle], [data-pill-nav]")) return;
+    setMenuOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setMenuOpen(false);
   });
   window.addEventListener("load", () => document.documentElement.classList.add("is-ready"));
+  const publicReviews = document.querySelector("#public-reviews");
+  if (publicReviews) loadPublicReviews(publicReviews);
 } else {
 const roleSelect = document.querySelector("#role-select");
 
@@ -90,6 +156,7 @@ const jobsList = document.querySelector("#jobs-list");
 const paymentsList = document.querySelector("#payments-list");
 const toast = document.querySelector("#toast");
 let currentRole = "buyer";
+let currentReviews = [];
 let toastTimer;
 let statePollTimer;
 
@@ -111,11 +178,71 @@ function notify(message) {
   toastTimer = setTimeout(() => toast.classList.remove("visible"), 3500);
 }
 
-function element(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
+function makeJobReview(job, reviews) {
+  const review = reviews.find((item) => item.jobId === job.id);
+  if (review) {
+    const block = element("div", "job-review");
+    block.append(
+      element("div", "job-review-title", "Your review"),
+      element("span", "job-review-stars", `${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}`),
+      element("p", "job-review-comment", review.comment)
+    );
+    return block;
+  }
+  if (currentRole !== "buyer" || !["completed", "approved_unpaid"].includes(job.status)) return null;
+
+  const form = element("form", "review-form");
+  const ratingLabel = element("label", "", "Your rating");
+  const rating = element("select");
+  rating.name = "rating";
+  rating.required = true;
+  rating.setAttribute("aria-label", "Rating from 1 to 5 stars");
+  const prompt = element("option", "", "Select a rating");
+  prompt.value = "";
+  prompt.disabled = true;
+  prompt.selected = true;
+  rating.append(prompt);
+  for (let score = 5; score >= 1; score -= 1) {
+    const option = element("option", "", `${score} ${score === 1 ? "star" : "stars"}`);
+    option.value = String(score);
+    rating.append(option);
+  }
+  ratingLabel.append(rating);
+  const commentLabel = element("label", "", "Review");
+  const comment = element("textarea");
+  comment.name = "comment";
+  comment.maxLength = 1000;
+  comment.required = true;
+  comment.placeholder = "Share useful, honest feedback about the completed job.";
+  commentLabel.append(comment);
+  const status = element("p", "status-message");
+  status.setAttribute("role", "status");
+  const submit = element("button", "button button-secondary compact", "Submit review");
+  submit.type = "submit";
+  form.append(
+    ratingLabel,
+    commentLabel,
+    element("p", "review-disclosure", "Your review and the job title will appear publicly without your account details."),
+    submit,
+    status
+  );
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    status.textContent = "Submitting your review…";
+    try {
+      await api(`/api/jobs/${job.id}/reviews`, {
+        method: "POST",
+        body: JSON.stringify({ rating: Number(rating.value), comment: comment.value })
+      });
+      notify("Review submitted. Thanks for sharing feedback.");
+      await loadState();
+    } catch (error) {
+      status.textContent = error.message;
+      submit.disabled = false;
+    }
+  });
+  return form;
 }
 
 function makeJobCard(job) {
@@ -177,6 +304,8 @@ function makeJobCard(job) {
     });
     card.append(approve);
   }
+  const review = makeJobReview(job, currentReviews);
+  if (review) card.append(review);
   return card;
 }
 
@@ -207,6 +336,7 @@ async function loadState() {
   try {
     const state = await api("/api/state");
     currentRole = state.role;
+    currentReviews = state.reviews || [];
     roleSelect.value = currentRole;
     document.querySelector("#demo-role-switch").hidden = state.runtime.mode === "production" || state.runtime.auth.configured;
     const authControl = document.querySelector("#auth-control");
